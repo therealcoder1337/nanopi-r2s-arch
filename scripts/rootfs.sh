@@ -103,7 +103,6 @@ slim_rootfs() {
     fi
 
     run_chroot_mkinitcpio
-    run_chroot_pacman -Scc 2>/dev/null || run_chroot_pacman -Sc
 
     if [ "$has_slimmed_firmware" -eq 1 ]; then
         sed -i "/^\[options\]$/a # Keep heavy GPU/WiFi firmware splits off this router image.\nIgnorePkg = linux-firmware linux-firmware-nvidia linux-firmware-amdgpu linux-firmware-radeon linux-firmware-intel linux-firmware-mediatek linux-firmware-broadcom linux-firmware-atheros linux-firmware-cirrus" mnt/etc/pacman.conf
@@ -231,6 +230,7 @@ add_resize_service() {
 
     # Build-time copy only; do not ship the CI/host resolver config on the SD image.
     finalize_image_resolver
+    rm -f mnt/var/cache/pacman/pkg/*
 
     unmount_chroot_root
     write_dir_to_image_partition "$img" mnt

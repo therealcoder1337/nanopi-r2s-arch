@@ -38,13 +38,13 @@ inspect_bootloader_region() {
     strings_out=$(dd if="$img" bs="$SECTOR_SIZE" skip="$BOOT_SEEK_SECTORS" \
         count="$((ROOTFS_SEEK_SECTORS - BOOT_SEEK_SECTORS))" status=none 2>/dev/null | strings)
 
-    if printf '%s\n' "$strings_out" | grep -q 'U-Boot SPL'; then
+    if [[ "$strings_out" == *'U-Boot SPL'* ]]; then
         echo "       U-Boot SPL marker: OK"
     else
         echo "       U-Boot SPL marker: not found (non-fatal)"
     fi
 
-    if printf '%s\n' "$strings_out" | grep -q 'TFA BL31'; then
+    if [[ "$strings_out" == *'TFA BL31'* ]]; then
         echo "       TF-A BL31 marker: OK"
     else
         echo "       TF-A BL31 marker: not found (non-fatal)"
