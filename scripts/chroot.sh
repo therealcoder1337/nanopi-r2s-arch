@@ -73,24 +73,6 @@ finalize_image_resolver() {
     fi
 }
 
-setup_chroot_build_opts() {
-    echo "    → Chroot build opts: MAKEFLAGS=-j${BUILD_JOBS}, ParallelDownloads=${BUILD_JOBS}"
-
-    mkdir -p mnt/etc/pacman.conf.d mnt/etc/environment.d
-
-    cat > mnt/etc/pacman.conf.d/99-chroot-build.conf <<EOF
-[options]
-DisableSandbox
-ParallelDownloads = ${BUILD_JOBS}
-EOF
-
-    cat > mnt/etc/environment.d/99-build-jobs.conf <<EOF
-MAKEFLAGS=-j${BUILD_JOBS}
-XZ_THREADS=${BUILD_JOBS}
-ZSTD_NBTHREADS=${BUILD_JOBS}
-EOF
-}
-
 run_arch_chroot() {
     arch-chroot mnt env \
         MAKEFLAGS="-j${BUILD_JOBS}" \
@@ -104,11 +86,13 @@ run_chroot_pacman() {
 }
 
 run_chroot_pacman_no_hooks() {
-    if run_arch_chroot pacman --help 2>&1 | grep -q 'disable-hooks'; then
-        run_chroot_pacman --disable-hooks "$@"
-    else
-        run_chroot_pacman "$@"
-    fi
+    local status=0
+
+    disable_chroot_pacman_hooks
+    run_chroot_pacman "$@" || status=$?
+    enable_chroot_pacman_hooks
+
+    return "$status"
 }
 
 disable_chroot_pacman_hooks() {

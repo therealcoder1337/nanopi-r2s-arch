@@ -27,10 +27,11 @@ jobs:
 
           CURRENT=$(curl -fsSL "$ARCH_ROOTFS_MD5_URL" | awk '{print $1}')
 
-          if [ -z "$CURRENT" ]; then
-            echo "Error: could not read Arch Linux ARM rootfs MD5" >&2
+          if ! [[ "$CURRENT" =~ ^[[:xdigit:]]{32}$ ]]; then
+            echo "Error: invalid Arch Linux ARM rootfs MD5: $CURRENT" >&2
             exit 1
           fi
+          CURRENT="${CURRENT,,}"
 
           echo "value=$CURRENT" >> "$GITHUB_OUTPUT"
 
@@ -49,7 +50,6 @@ jobs:
           STORED=$(cat arch-state/last_md5.txt 2>/dev/null || true)
 
           echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
-          echo "stored=$STORED" >> "$GITHUB_OUTPUT"
 
           if [ "$CURRENT" != "$STORED" ]; then
             echo "has_changed=true" >> "$GITHUB_OUTPUT"

@@ -14,17 +14,9 @@ read_image_hex_at() {
 inspect_bootloader_region() {
     local img="$1"
     local has_failure=0
-    local off hex size src_hash img_hash strings_out
+    local off size src_hash img_hash strings_out
 
     off=$((BOOT_SEEK_SECTORS * SECTOR_SIZE))
-    hex=$(read_image_hex_at "$img" "$off" 8)
-
-    if [ "$hex" = "0000000000000000" ]; then
-        printf '       u-boot-rockchip.bin @ 0x%x: FAIL\n' "$off"
-        has_failure=1
-    else
-        printf '       u-boot-rockchip.bin @ 0x%x: OK\n' "$off"
-    fi
 
     if [ ! -f "$UBOOT_ROCKCHIP_BIN" ]; then
         echo "       u-boot-rockchip.bin payload: FAIL (missing source artifact)"

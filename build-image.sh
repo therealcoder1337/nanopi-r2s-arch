@@ -21,6 +21,7 @@ source "$SCRIPTS_DIR/postprocess.sh"
 run_build() {
     require_root
     setup_directories
+    trap unmount_chroot_root EXIT
     check_dependencies
     build_trusted_firmware
     build_uboot
@@ -31,12 +32,12 @@ run_build() {
     download_and_verify_rootfs
     extract_and_configure
     add_resize_service
-    inspect_image
 
     local img="$OUTPUT_DIR/$IMAGE_NAME"
     if [ "$SHOULD_SKIP_SHRINK" != "1" ]; then
         shrink_image "$img"
     fi
+    inspect_image
     write_checksums "$img"
     print_build_summary
 }

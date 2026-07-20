@@ -37,16 +37,19 @@ jobs:
 
       - id: arch_md5
         if: env.ACT != 'true'
+        env:
+          INPUT_ARCH_MD5: ${{ inputs.arch_md5 }}
         run: |
           set -euo pipefail
 
-          if [ -n "${{ inputs.arch_md5 }}" ]; then
-            MD5="${{ inputs.arch_md5 }}"
+          if [ -n "$INPUT_ARCH_MD5" ]; then
+            MD5="$INPUT_ARCH_MD5"
           else
             MD5=$(curl -fsSL "$ARCH_ROOTFS_MD5_URL" | awk '{print $1}')
           fi
 
-          [ -n "$MD5" ] || { echo "Error: could not resolve Arch rootfs MD5" >&2; exit 1; }
+          [[ "$MD5" =~ ^[[:xdigit:]]{32}$ ]] || { echo "Error: invalid Arch rootfs MD5: $MD5" >&2; exit 1; }
+          MD5="${MD5,,}"
 
           echo "value=$MD5" >> "$GITHUB_OUTPUT"
           echo "Arch rootfs cache key MD5: $MD5"
@@ -106,16 +109,9 @@ jobs:
           rm -f output/*.img output/*.img.xz output/SHA256SUMS output/IMAGES \
             output/SOURCE_INFO_R2S_KERNEL.txt
 
-          build_image_variant() {
-            local variant="$1"
-            echo "==> Building ${variant} image"
-            KERNEL_VARIANT="$variant" ./build-image.sh
-          }
-
-          build_image_variant stock
-          build_image_variant minimal
+          KERNEL_VARIANT=stock ./build-image.sh
+          KERNEL_VARIANT=minimal ./build-image.sh
         env:
-          CI: "1"
           CACHE_DIR: cache
           OUTPUT_DIR: output
           ARCH_ROOTFS_MD5: ${{ steps.arch_md5.outputs.value }}
@@ -159,7 +155,6 @@ jobs:
           echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
 
       - name: Compress image for release
-        id: compress
         run: |
           set -euo pipefail
           rm -f output/*.img.xz output/SHA256SUMS

@@ -54,14 +54,10 @@ remove_stock_kernel() {
     fi
 
     echo "    → Removing stock linux-aarch64..."
-    disable_chroot_pacman_hooks
-
     if ! run_chroot_pacman_no_hooks -Rdd linux-aarch64; then
-        enable_chroot_pacman_hooks
         return 1
     fi
 
-    enable_chroot_pacman_hooks
     remove_stock_kernel_artifacts
 }
 
@@ -94,12 +90,11 @@ verify_minimal_kernel() {
 }
 
 write_minimal_kernel_source_info() {
-    local package version tag source_archive repo
+    local package version tag repo
 
     package="$(run_arch_chroot pacman -Q linux-nanopi-r2s-minimal)"
     version="${package#linux-nanopi-r2s-minimal }"
     tag="linux-nanopi-r2s-minimal-${version}"
-    source_archive="${tag}-source.tar.zst"
     repo="https://github.com/therealcoder1337/nanopi-r2s-kernel-arch"
 
     cat > "$OUTPUT_DIR/SOURCE_INFO_R2S_KERNEL.txt" <<EOF
@@ -115,7 +110,6 @@ The package is distributed by the nanopi-r2s-kernel-arch pacman repository:
 Corresponding source is published with the matching kernel package release:
 
   ${repo}/releases/tag/${tag}
-  ${repo}/releases/download/${tag}/${source_archive}
 
 That release also includes the merged kernel config and source information.
 EOF
