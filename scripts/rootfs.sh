@@ -52,8 +52,8 @@ download_and_verify_rootfs() {
         echo "    → Using cached rootfs tarball ($(basename "$tarball"), MD5 $expected)"
     else
         echo "    → Fetching tarball and signature..."
-        wget --show-progress -O "$tarball" "$ARCH_ROOTFS_URL"
-        wget --show-progress -O "$sig" "$ARCH_ROOTFS_SIG_URL"
+        wget --progress=dot:giga -O "$tarball" "$ARCH_ROOTFS_URL"
+        wget --progress=dot:giga -O "$sig" "$ARCH_ROOTFS_SIG_URL"
     fi
 
     echo "    → Verifying signature ($ARCH_SIGNING_KEY_FPR)..."
