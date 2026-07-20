@@ -35,7 +35,7 @@ jobs:
 
           echo "value=$CURRENT" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache/restore@v5
+      - uses: actions/cache/restore@v6
         with:
           path: arch-state
           key: arch-md5-state-${{ steps.current_md5.outputs.value }}
@@ -65,7 +65,7 @@ jobs:
           mkdir -p arch-state
           echo "${{ steps.arch_md5.outputs.current }}" > arch-state/last_md5.txt
 
-      - uses: actions/cache/save@v5
+      - uses: actions/cache/save@v6
         if: steps.arch_md5.outputs.has_changed == 'true'
         with:
           path: arch-state

@@ -1,4 +1,4 @@
 Vendored OpenPGP keyrings for upstream verification (not redistributable as project code).
 
 - alarmsigning.gpg — Arch Linux ARM build-system key (68B3537F39A313B3E574D06777193F152BDBE6A6)
-- u-boot-release.gpg — Thomas Rini, U-Boot v2026.04 release tag (F3CEA8743D60E0192F9B4C7A2BE2A0F50ABFE40A)
+- u-boot-release.gpg — Thomas Rini, U-Boot v2026.07 release tag (F3CEA8743D60E0192F9B4C7A2BE2A0F50ABFE40A)

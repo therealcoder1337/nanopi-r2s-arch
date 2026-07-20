@@ -6,7 +6,7 @@ You can choose between a stock ALARM kernel image and a smaller image using [`li
 
 The image uses a mainline boot stack with source-built Trusted Firmware-A BL31, mainline U-Boot, the official aarch64 rootfs, and small NanoPi R2S adjustments. Earlier Arch-on-R2S attempts often still relied on Armbian boot pieces or kernels; for example [larsch's gist](https://gist.github.com/larsch/a8f13faa2163984bb945d02efb897e6d) and [sakapoko/archlinux_r2s](https://github.com/sakapoko/archlinux_r2s).
 
-Status: boots on NanoPi R2S with mainline U-Boot `v2026.04` and TF-A `v2.15.0`, supports stock and minimal-kernel images, verifies upstream downloads during build, and configures the rear GPIO LAN/WAN LEDs at boot.
+Current builds use mainline U-Boot `v2026.07` and TF-A `v2.15.0`, support stock and minimal-kernel images, verify upstream downloads, and configure the rear GPIO LAN/WAN LEDs at boot.
 
 This is not an official Arch Linux ARM project. For OS-level defaults such as users, passwords, and package management, use the [Arch Linux ARM documentation](https://archlinuxarm.org/).
 

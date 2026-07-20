@@ -9,13 +9,13 @@ Corresponding source (public)
 Complete source for the U-Boot version used in the image:
 
   https://source.denx.de/u-boot/u-boot.git
-  Tag: v2026.04
-  Commit: 88dc2788777babfd6322fa655df549a019aa1e69
+  Tag: v2026.07
+  Commit: ece349ade2973e220f524ce59e59711cc919263f
 
 Clone example:
 
   git clone https://source.denx.de/u-boot/u-boot.git
-  git checkout 88dc2788777babfd6322fa655df549a019aa1e69
+  git checkout ece349ade2973e220f524ce59e59711cc919263f
 
 How this project builds it
 --------------------------

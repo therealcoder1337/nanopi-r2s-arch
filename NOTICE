@@ -20,7 +20,7 @@ Trusted Firmware-A BL31 (BSD-3-Clause)
 U-Boot (GPL-2.0-or-later)
 -------------------------
 - Source: https://source.denx.de/u-boot/u-boot.git
-- Tag: v2026.04 (commit 88dc2788777babfd6322fa655df549a019aa1e69, signed tag)
+- Tag: v2026.07 (commit ece349ade2973e220f524ce59e59711cc919263f, signed tag)
 - Built from source during image creation (nanopi-r2s-rk3328_defconfig)
 - Produces the mainline Rockchip `u-boot-rockchip.bin` image used on the SD card
 - GPL source information: SOURCE_OFFER_U_BOOT.txt
