@@ -216,12 +216,12 @@ add_resize_service() {
         ln -sf /etc/systemd/system/resize-rootfs.service \
             mnt/etc/systemd/system/multi-user.target.wants/resize-rootfs.service
 
-        echo "    → Installing cloud-utils in image (growpart for first boot)..."
+        echo "    → Installing cloud-guest-utils in image (growpart for first boot)..."
         set_chroot_resolver
         run_chroot_pacman -Sy
 
-        if ! run_chroot_pacman -S cloud-utils; then
-            echo "Error: cloud-utils install failed (required for first-boot growpart)" >&2
+        if ! run_chroot_pacman -S cloud-guest-utils; then
+            echo "Error: cloud-guest-utils install failed (required for first-boot growpart)" >&2
             exit 1
         fi
     else
