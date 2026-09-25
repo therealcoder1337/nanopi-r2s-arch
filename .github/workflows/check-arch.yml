@@ -6,13 +6,17 @@ on:
   workflow_dispatch:
     inputs:
       should_force_build:
-        description: Trigger image build even if rootfs MD5 is unchanged
+        description: Trigger image build even if unchanged or the previous build failed
         type: boolean
         default: false
 
 permissions:
   contents: read
   actions: write
+
+concurrency:
+  group: check-arch
+  cancel-in-progress: false
 
 env:
   ARCH_ROOTFS_MD5_URL: http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz.md5
@@ -21,6 +25,39 @@ jobs:
   poll:
     runs-on: ubuntu-latest
     steps:
+      - name: Check latest completed image build
+        if: github.event_name != 'workflow_dispatch' || !inputs.should_force_build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          # A pending retry or a test-branch build must not hide a failed release build.
+          last_build="$(gh run list \
+            --repo "$GH_REPO" \
+            --workflow build-image.yml \
+            --branch "$DEFAULT_BRANCH" \
+            --status completed \
+            --limit 1 \
+            --json conclusion,url \
+            --jq '.[0] // {}')"
+          if [ "$last_build" = '{}' ]; then
+            exit 0
+          fi
+          conclusion="$(jq -r '.conclusion' <<< "$last_build")"
+          if [ "$conclusion" != success ]; then
+            url="$(jq -r '.url' <<< "$last_build")"
+            printf '::error::Automatic builds paused: latest completed build on %s ended with %s. See %s\n' "$DEFAULT_BRANCH" "$conclusion" "$url"
+            {
+              printf '### Automatic image builds are paused\n\n'
+              printf 'The latest completed build on `%s` [ended with `%s`](%s).\n\n' "$DEFAULT_BRANCH" "$conclusion" "$url"
+              printf 'Fix the failure, then manually run the build on `%s` or run this check with `should_force_build` enabled.\n' "$DEFAULT_BRANCH"
+              printf 'Automatic builds resume after a successful build. No build was triggered.\n'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
       - id: current_md5
         run: |
           set -euo pipefail
@@ -59,20 +96,31 @@ jobs:
             echo "Arch rootfs MD5 unchanged: $CURRENT"
           fi
 
-      - name: Record MD5 after change
-        if: steps.arch_md5.outputs.has_changed == 'true'
+      - name: Check active image builds
+        id: active_builds
+        if: steps.arch_md5.outputs.has_changed == 'true' || (github.event_name == 'workflow_dispatch' && inputs.should_force_build)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          mkdir -p arch-state
-          echo "${{ steps.arch_md5.outputs.current }}" > arch-state/last_md5.txt
-
-      - uses: actions/cache/save@v6
-        if: steps.arch_md5.outputs.has_changed == 'true'
-        with:
-          path: arch-state
-          key: arch-md5-state-${{ steps.arch_md5.outputs.current }}
+          set -euo pipefail
+          # Build concurrency is shared by all branches; do not add another queued build.
+          count="$(gh run list \
+            --repo "$GH_REPO" \
+            --workflow build-image.yml \
+            --limit 100 \
+            --json status \
+            --jq '[.[] | select(.status != "completed")] | length')"
+          if [ "$count" -eq 0 ]; then
+            echo "busy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "busy=true" >> "$GITHUB_OUTPUT"
+            echo "Image build already active; deferring without recording the MD5."
+          fi
 
       - name: Trigger image build
-        if: steps.arch_md5.outputs.has_changed == 'true' || (github.event_name == 'workflow_dispatch' && inputs.should_force_build)
+        id: trigger_build
+        if: (steps.arch_md5.outputs.has_changed == 'true' || (github.event_name == 'workflow_dispatch' && inputs.should_force_build)) && steps.active_builds.outputs.busy == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -81,3 +129,15 @@ jobs:
             --ref "${{ github.event.repository.default_branch }}" \
             -f "arch_md5=${{ steps.arch_md5.outputs.current }}" \
             -f "should_publish_release=true"
+
+      - name: Record MD5 after dispatch
+        if: steps.trigger_build.outcome == 'success' && steps.arch_md5.outputs.has_changed == 'true'
+        run: |
+          mkdir -p arch-state
+          echo "${{ steps.arch_md5.outputs.current }}" > arch-state/last_md5.txt
+
+      - uses: actions/cache/save@v6
+        if: steps.trigger_build.outcome == 'success' && steps.arch_md5.outputs.has_changed == 'true'
+        with:
+          path: arch-state
+          key: arch-md5-state-${{ steps.arch_md5.outputs.current }}

@@ -93,6 +93,7 @@ sudo ./build-image.sh --shrink-only output/IMAGE.img
 
 - `build-image.yml` builds both stock and minimal-kernel images from workflow dispatch.
 - `check-arch.yml` checks the Arch Linux ARM rootfs MD5 and triggers a build of both images when it changes.
+- Failed main-branch builds pause automatic builds. A successful main-branch build clears the guard; `should_force_build` allows a manual retry.
 - Release artifacts include image `.xz` file(s), `SHA256SUMS`, `LICENSE`, `LICENSE_GPL-2.0-or-later.txt`, `NOTICE`, `LICENSE_TFA.txt`, `SOURCE_INFO_TFA.txt`, `SOURCE_OFFER_U_BOOT.txt`, and `SOURCE_INFO_R2S_KERNEL.txt`.
 
 CI caches TF-A, U-Boot, and the rootfs tarball. Scheduled builds publish both stock and minimal-kernel images. Manual branch builds publish test prereleases. Release/artifact files must stay below GitHub's 2 GiB per-file limit, so the raw image defaults to `1900M`.
