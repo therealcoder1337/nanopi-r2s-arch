@@ -109,9 +109,11 @@ shrink_image() {
 
 write_checksums() {
     local img="$1"
-    local sums="$OUTPUT_DIR/SHA256SUMS"
+    local img_dir sums
+    img_dir=$(dirname -- "$img")
+    sums="$img_dir/SHA256SUMS"
 
-    (cd "$OUTPUT_DIR" && sha256sum "$(basename "$img")") > "$sums"
+    (cd "$img_dir" && sha256sum -- "$(basename -- "$img")") > "$sums"
 
     echo "    SHA256SUMS written to $sums"
     cat "$sums"
@@ -172,6 +174,7 @@ shrink_only() {
         exit 1
     fi
 
+    img=$(realpath -- "$img")
     setup_directories
     shrink_image "$img"
     write_checksums "$img"
