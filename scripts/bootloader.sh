@@ -74,7 +74,8 @@ fetch_uboot_tree() {
 get_uboot_build_tag() {
     {
         printf '%s\n' "$UBOOT_COMMIT"
-        sha256sum "$TFA_BL31" "$SCRIPTS_DIR/bootloader.sh"
+        sha256sum "$TFA_BL31" "$SCRIPTS_DIR/bootloader.sh" \
+            "$SCRIPT_DIR"/vendor/patches/u-boot/*.patch
     } | sha256sum | awk '{print $1}'
 }
 
@@ -99,6 +100,9 @@ build_uboot() {
         echo "    -> Skipping U-Boot rebuild (SHOULD_SKIP_UBOOT_REBUILD=1)"
         return 0
     fi
+
+    echo "    -> Applying U-Boot build compatibility patches..."
+    run_git_uboot apply "$SCRIPT_DIR"/vendor/patches/u-boot/*.patch
 
     echo "    -> Building U-Boot..."
     rm -rf "$UBOOT_BUILD_DIR"

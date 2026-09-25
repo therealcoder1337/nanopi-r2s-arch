@@ -2,3 +2,8 @@ Vendored OpenPGP keyrings for upstream verification (not redistributable as proj
 
 - alarmsigning.gpg — Arch Linux ARM build-system key (68B3537F39A313B3E574D06777193F152BDBE6A6)
 - u-boot-release.gpg — Thomas Rini, U-Boot v2026.07 release tag (F3CEA8743D60E0192F9B4C7A2BE2A0F50ABFE40A)
+
+U-Boot host-tool patches (GPL-2.0-or-later OR BSD-2-Clause):
+
+- patches/u-boot/pylibfdt-swig-4.5.patch — DTC commit 5008d1d6a356,
+  adapted to U-Boot's bundled source path; replaces removed Python 2 aliases.

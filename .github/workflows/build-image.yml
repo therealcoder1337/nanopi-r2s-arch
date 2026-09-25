@@ -62,7 +62,7 @@ jobs:
           path: |
             cache/u-boot
             cache/u-boot-build
-          key: uboot-${{ hashFiles('scripts/common.sh', 'scripts/bootloader.sh') }}
+          key: uboot-${{ hashFiles('scripts/common.sh', 'scripts/bootloader.sh', 'vendor/patches/u-boot/*.patch') }}
 
       - name: Cache TF-A tree
         if: env.ACT != 'true'
