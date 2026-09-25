@@ -116,7 +116,7 @@ verify_boot_files() {
     local missing=()
     local f
 
-    for f in boot/Image boot/initramfs-linux.img boot/uInitrd boot/boot.scr \
+    for f in boot/Image boot/initramfs-linux.img boot/boot.scr \
              "boot/dtbs/$BOOT_DTB"; do
         [ -f "mnt/$f" ] || missing+=("$f")
     done
@@ -187,10 +187,6 @@ extract_and_configure() {
     fi
 
     slim_rootfs
-
-    echo "    → Wrapping initramfs as uInitrd..."
-    "$UBOOT_BUILD_DIR/tools/mkimage" -A arm64 -O linux -T ramdisk -C none \
-        -n "Arch Linux ARM initramfs" -d mnt/boot/initramfs-linux.img mnt/boot/uInitrd
 
     echo "    → Installing boot.scr..."
     install -D -m 0644 "$boot_cmd" mnt/boot/boot.cmd
