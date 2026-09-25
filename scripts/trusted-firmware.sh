@@ -9,6 +9,7 @@ checkout_tfa_ref() {
     run_git_tfa fetch --depth 1 origin "$TFA_REF"
     run_git_tfa checkout --detach FETCH_HEAD >/dev/null
     run_git_tfa reset --hard FETCH_HEAD >/dev/null
+    run_git_tfa clean -fdx >/dev/null
 }
 
 fetch_tfa_tree() {
@@ -33,21 +34,6 @@ fetch_tfa_tree() {
         echo "Error: TF-A HEAD is ${head:0:12}, expected ${TFA_COMMIT:0:12}." >&2
         exit 1
     fi
-}
-
-get_tfa_build_variant() {
-    case "$TFA_BUILD_TYPE" in
-        debug) echo debug ;;
-        release) echo release ;;
-        *)
-            echo "Error: TFA_BUILD_TYPE must be debug or release" >&2
-            exit 1
-            ;;
-    esac
-}
-
-get_tfa_debug_flag() {
-    [ "$TFA_BUILD_TYPE" = release ] && echo 0 || echo 1
 }
 
 get_tfa_build_tag() {
@@ -92,9 +78,15 @@ build_trusted_firmware() {
         return 0
     fi
 
-    local variant debug built_bl31
-    variant=$(get_tfa_build_variant)
-    debug=$(get_tfa_debug_flag)
+    local variant="$TFA_BUILD_TYPE" debug built_bl31
+    case "$variant" in
+        debug) debug=1 ;;
+        release) debug=0 ;;
+        *)
+            echo "Error: TFA_BUILD_TYPE must be debug or release" >&2
+            exit 1
+            ;;
+    esac
     built_bl31="$TFA_DIR/build/rk3328/$variant/bl31/bl31.elf"
 
     echo "    → Building BL31..."

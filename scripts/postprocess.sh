@@ -14,17 +14,9 @@ read_image_hex_at() {
 inspect_bootloader_region() {
     local img="$1"
     local has_failure=0
-    local off hex size src_hash img_hash strings_out
+    local off size src_hash img_hash strings_out
 
     off=$((BOOT_SEEK_SECTORS * SECTOR_SIZE))
-    hex=$(read_image_hex_at "$img" "$off" 8)
-
-    if [ "$hex" = "0000000000000000" ]; then
-        printf '       u-boot-rockchip.bin @ 0x%x: FAIL\n' "$off"
-        has_failure=1
-    else
-        printf '       u-boot-rockchip.bin @ 0x%x: OK\n' "$off"
-    fi
 
     if [ ! -f "$UBOOT_ROCKCHIP_BIN" ]; then
         echo "       u-boot-rockchip.bin payload: FAIL (missing source artifact)"
@@ -46,13 +38,13 @@ inspect_bootloader_region() {
     strings_out=$(dd if="$img" bs="$SECTOR_SIZE" skip="$BOOT_SEEK_SECTORS" \
         count="$((ROOTFS_SEEK_SECTORS - BOOT_SEEK_SECTORS))" status=none 2>/dev/null | strings)
 
-    if printf '%s\n' "$strings_out" | grep -q 'U-Boot SPL'; then
+    if [[ "$strings_out" == *'U-Boot SPL'* ]]; then
         echo "       U-Boot SPL marker: OK"
     else
         echo "       U-Boot SPL marker: not found (non-fatal)"
     fi
 
-    if printf '%s\n' "$strings_out" | grep -q 'TFA BL31'; then
+    if [[ "$strings_out" == *'TFA BL31'* ]]; then
         echo "       TF-A BL31 marker: OK"
     else
         echo "       TF-A BL31 marker: not found (non-fatal)"
@@ -117,9 +109,11 @@ shrink_image() {
 
 write_checksums() {
     local img="$1"
-    local sums="$OUTPUT_DIR/SHA256SUMS"
+    local img_dir sums
+    img_dir=$(dirname -- "$img")
+    sums="$img_dir/SHA256SUMS"
 
-    (cd "$OUTPUT_DIR" && sha256sum "$(basename "$img")") > "$sums"
+    (cd "$img_dir" && sha256sum -- "$(basename -- "$img")") > "$sums"
 
     echo "    SHA256SUMS written to $sums"
     cat "$sums"
@@ -180,6 +174,7 @@ shrink_only() {
         exit 1
     fi
 
+    img=$(realpath -- "$img")
     setup_directories
     shrink_image "$img"
     write_checksums "$img"

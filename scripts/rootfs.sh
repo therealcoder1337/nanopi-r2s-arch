@@ -10,13 +10,7 @@ get_arch_rootfs_md5() {
 }
 
 verify_arch_rootfs_md5() {
-    local tarball="$1" expected actual
-
-    expected="${2:-$(get_arch_rootfs_md5)}"
-    if [ -z "$expected" ]; then
-        echo "Error: could not resolve Arch rootfs MD5 ($ARCH_MD5_URL)" >&2
-        exit 1
-    fi
+    local tarball="$1" expected="$2" actual
 
     actual=$(md5sum "$tarball" | awk '{print $1}')
     if [ "$actual" != "$expected" ]; then
@@ -28,12 +22,9 @@ verify_arch_rootfs_md5() {
 }
 
 has_matching_rootfs_tarball_md5() {
-    local tarball="$1" expected actual
+    local tarball="$1" expected="$2" actual
 
     [ -f "$tarball" ] || return 1
-
-    expected="${2:-}"
-    [ -n "$expected" ] || return 1
 
     actual=$(md5sum "$tarball" | awk '{print $1}')
     [ "$actual" = "$expected" ]
@@ -51,17 +42,18 @@ download_and_verify_rootfs() {
     }
 
     expected=$(get_arch_rootfs_md5)
-    if [ -z "$expected" ]; then
-        echo "Error: could not resolve Arch rootfs MD5 ($ARCH_MD5_URL)" >&2
+    if ! [[ "$expected" =~ ^[[:xdigit:]]{32}$ ]]; then
+        echo "Error: invalid Arch rootfs MD5 from $ARCH_MD5_URL: $expected" >&2
         exit 1
     fi
+    expected="${expected,,}"
 
     if [ -f "$tarball" ] && [ -f "$sig" ] && has_matching_rootfs_tarball_md5 "$tarball" "$expected"; then
         echo "    → Using cached rootfs tarball ($(basename "$tarball"), MD5 $expected)"
     else
         echo "    → Fetching tarball and signature..."
-        wget -N --show-progress -O "$tarball" "$ARCH_ROOTFS_URL"
-        wget -N --show-progress -O "$sig" "$ARCH_ROOTFS_SIG_URL"
+        wget --progress=dot:giga -O "$tarball" "$ARCH_ROOTFS_URL"
+        wget --progress=dot:giga -O "$sig" "$ARCH_ROOTFS_SIG_URL"
     fi
 
     echo "    → Verifying signature ($ARCH_SIGNING_KEY_FPR)..."
@@ -84,7 +76,7 @@ slim_rootfs() {
 
     echo "    → Slimming firmware packages..."
     local -a fw_pkgs=(linux-firmware-whence linux-firmware-realtek)
-    local has_slimmed_firmware=0 should_regenerate_initramfs=0
+    local has_slimmed_firmware=0
 
     set_chroot_resolver
 
@@ -98,14 +90,10 @@ slim_rootfs() {
         return 0
     fi
 
-    disable_chroot_pacman_hooks
     if ! run_chroot_pacman_no_hooks -Rns linux-firmware; then
-        enable_chroot_pacman_hooks
         echo "       Warning: could not remove linux-firmware meta"
         return 0
     fi
-
-    should_regenerate_initramfs=1
 
     if run_chroot_pacman_no_hooks -S "${fw_pkgs[@]}"; then
         has_slimmed_firmware=1
@@ -113,21 +101,11 @@ slim_rootfs() {
         echo "       Warning: slim install failed; restoring linux-firmware"
         run_chroot_pacman_no_hooks -S linux-firmware || true
     fi
-    enable_chroot_pacman_hooks
 
-    if [ "$should_regenerate_initramfs" -eq 1 ]; then
-        run_chroot_mkinitcpio
-    fi
-
-    run_chroot_pacman -Scc --noconfirm 2>/dev/null || run_chroot_pacman -Sc --noconfirm
-
-    cat > mnt/etc/pacman.conf.d/99-nanopi-r2s-slim.conf <<'EOF'
-# Keep heavy GPU/WiFi firmware splits off this router image.
-[options]
-IgnorePkg = linux-firmware linux-firmware-nvidia linux-firmware-amdgpu linux-firmware-radeon linux-firmware-intel linux-firmware-mediatek linux-firmware-broadcom linux-firmware-atheros linux-firmware-cirrus
-EOF
+    run_chroot_mkinitcpio
 
     if [ "$has_slimmed_firmware" -eq 1 ]; then
+        sed -i "/^\[options\]$/a # Keep heavy GPU/WiFi firmware splits off this router image.\nIgnorePkg = linux-firmware linux-firmware-nvidia linux-firmware-amdgpu linux-firmware-radeon linux-firmware-intel linux-firmware-mediatek linux-firmware-broadcom linux-firmware-atheros linux-firmware-cirrus" mnt/etc/pacman.conf
         echo "       firmware slim OK (realtek + whence)"
     fi
 }
@@ -138,7 +116,7 @@ verify_boot_files() {
     local missing=()
     local f
 
-    for f in boot/Image boot/initramfs-linux.img boot/uInitrd boot/boot.scr \
+    for f in boot/Image boot/initramfs-linux.img boot/boot.scr \
              "boot/dtbs/$BOOT_DTB"; do
         [ -f "mnt/$f" ] || missing+=("$f")
     done
@@ -198,7 +176,6 @@ extract_and_configure() {
         printf '127.0.1.1\t%s.localdomain\t%s\n' "$ROOTFS_HOSTNAME" "$ROOTFS_HOSTNAME" >> mnt/etc/hosts
     fi
 
-    setup_chroot_build_opts
     run_arch_chroot pacman-key --init
     run_arch_chroot pacman-key --populate archlinuxarm
 
@@ -210,10 +187,6 @@ extract_and_configure() {
     fi
 
     slim_rootfs
-
-    echo "    → Wrapping initramfs as uInitrd..."
-    "$UBOOT_BUILD_DIR/tools/mkimage" -A arm64 -O linux -T ramdisk -C none \
-        -n "Arch Linux ARM initramfs" -d mnt/boot/initramfs-linux.img mnt/boot/uInitrd
 
     echo "    → Installing boot.scr..."
     install -D -m 0644 "$boot_cmd" mnt/boot/boot.cmd
@@ -239,13 +212,12 @@ add_resize_service() {
         ln -sf /etc/systemd/system/resize-rootfs.service \
             mnt/etc/systemd/system/multi-user.target.wants/resize-rootfs.service
 
-        echo "    → Installing cloud-utils in image (growpart for first boot)..."
+        echo "    → Installing cloud-guest-utils in image (growpart for first boot)..."
         set_chroot_resolver
         run_chroot_pacman -Sy
 
-        if ! run_chroot_pacman -S cloud-utils; then
-            echo "Error: cloud-utils install failed (required for first-boot growpart)" >&2
-            unmount_chroot_root
+        if ! run_chroot_pacman -S cloud-guest-utils; then
+            echo "Error: cloud-guest-utils install failed (required for first-boot growpart)" >&2
             exit 1
         fi
     else
@@ -254,6 +226,7 @@ add_resize_service() {
 
     # Build-time copy only; do not ship the CI/host resolver config on the SD image.
     finalize_image_resolver
+    rm -f mnt/var/cache/pacman/pkg/*
 
     unmount_chroot_root
     write_dir_to_image_partition "$img" mnt

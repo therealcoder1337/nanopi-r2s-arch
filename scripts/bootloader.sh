@@ -5,6 +5,14 @@ run_git_uboot() {
     git -C "$UBOOT_DIR" -c safe.directory="$UBOOT_DIR" "$@"
 }
 
+checkout_uboot_tag() {
+    run_git_uboot fetch --force --depth 1 origin \
+        "+refs/tags/${UBOOT_TAG}:refs/tags/${UBOOT_TAG}"
+    run_git_uboot checkout --detach "$UBOOT_TAG" >/dev/null
+    run_git_uboot reset --hard "$UBOOT_TAG" >/dev/null
+    run_git_uboot clean -fdx >/dev/null
+}
+
 verify_uboot_release_tag() {
     local gpg_home gpg_wrapper keyring="$SCRIPT_DIR/vendor/u-boot-release.gpg"
     local has_gpg_error=0
@@ -33,45 +41,41 @@ verify_uboot_release_tag() {
 }
 
 fetch_uboot_tree() {
-    local head
+    local head tag_commit
 
     if [ -d "$UBOOT_DIR/.git" ]; then
         head=$(run_git_uboot rev-parse -q HEAD 2>/dev/null) || head=
+        tag_commit=$(run_git_uboot rev-list -n1 "$UBOOT_TAG" 2>/dev/null) || tag_commit=
 
-        if [ "$head" != "$UBOOT_COMMIT" ]; then
-            echo "Error: $UBOOT_DIR is ${head:0:12}, expected ${UBOOT_COMMIT:0:12} ($UBOOT_TAG)." >&2
-            echo "Run: rm -rf $UBOOT_DIR && re-run." >&2
-            exit 1
+        if [ -z "$tag_commit" ] || [ "$head" != "$tag_commit" ]; then
+            echo "    -> Updating U-Boot to $UBOOT_TAG..."
+            checkout_uboot_tag
+        else
+            echo "    -> Using cached U-Boot: $UBOOT_DIR ($UBOOT_TAG @ ${head:0:12})"
+            run_git_uboot reset --hard "$UBOOT_TAG" >/dev/null
+            run_git_uboot clean -fdx >/dev/null
         fi
-
-        echo "    -> Using cached U-Boot: $UBOOT_DIR ($UBOOT_TAG @ ${UBOOT_COMMIT:0:12})"
-        run_git_uboot reset --hard HEAD >/dev/null
-        run_git_uboot clean -fdx >/dev/null
-        verify_uboot_release_tag
-        return 0
-    fi
-
-    echo "    -> Cloning U-Boot $UBOOT_TAG..."
-    if ! git clone --depth 1 --single-branch --branch "$UBOOT_TAG" \
-        "$UBOOT_GIT_URL" "$UBOOT_DIR" 2>/dev/null; then
-        git clone --depth 1 --filter=blob:none --no-checkout "$UBOOT_GIT_URL" "$UBOOT_DIR"
-        run_git_uboot fetch --depth 1 origin "refs/tags/${UBOOT_TAG}:refs/tags/${UBOOT_TAG}"
-        run_git_uboot checkout --detach "$UBOOT_TAG"
-    fi
-
-    head=$(run_git_uboot rev-parse -q HEAD)
-    if [ "$head" != "$UBOOT_COMMIT" ]; then
-        echo "Error: U-Boot HEAD is ${head:0:12}, expected ${UBOOT_COMMIT:0:12}." >&2
-        exit 1
+    else
+        echo "    -> Cloning U-Boot $UBOOT_TAG..."
+        git init -q "$UBOOT_DIR"
+        run_git_uboot remote add origin "$UBOOT_GIT_URL"
+        checkout_uboot_tag
     fi
 
     verify_uboot_release_tag
+
+    head=$(run_git_uboot rev-parse -q HEAD)
+    if [ "$head" != "$UBOOT_COMMIT" ]; then
+        echo "Error: U-Boot HEAD ${head:0:12}, expected ${UBOOT_COMMIT:0:12} ($UBOOT_TAG)." >&2
+        exit 1
+    fi
 }
 
 get_uboot_build_tag() {
     {
         printf '%s\n' "$UBOOT_COMMIT"
-        sha256sum "$TFA_BL31" "$SCRIPTS_DIR/bootloader.sh"
+        sha256sum "$TFA_BL31" "$SCRIPTS_DIR/bootloader.sh" \
+            "$SCRIPT_DIR"/vendor/patches/u-boot/*.patch
     } | sha256sum | awk '{print $1}'
 }
 
@@ -96,6 +100,9 @@ build_uboot() {
         echo "    -> Skipping U-Boot rebuild (SHOULD_SKIP_UBOOT_REBUILD=1)"
         return 0
     fi
+
+    echo "    -> Applying U-Boot build compatibility patches..."
+    run_git_uboot apply "$SCRIPT_DIR"/vendor/patches/u-boot/*.patch
 
     echo "    -> Building U-Boot..."
     rm -rf "$UBOOT_BUILD_DIR"

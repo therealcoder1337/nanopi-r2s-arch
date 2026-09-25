@@ -15,12 +15,13 @@ if test "${devtype}" = "mmc"; then
 fi
 setenv bootargs "root=${rootdev} rootwait rootfstype=${rootfstype} rw ${consoleargs} loglevel=7 ubootpart=${partuuid}"
 
-load ${devtype} ${devnum}:${distro_bootpart} ${ramdisk_addr_r} ${prefix}uInitrd
-load ${devtype} ${devnum}:${distro_bootpart} ${kernel_addr_r} ${prefix}Image
-load ${devtype} ${devnum}:${distro_bootpart} ${fdt_addr_r} ${prefix}dtbs/${fdtfile}
+load ${devtype} ${devnum}:${distro_bootpart} ${ramdisk_addr_r} ${prefix}initramfs-linux.img || exit 1
+setenv ramdisk_size ${filesize}
+load ${devtype} ${devnum}:${distro_bootpart} ${kernel_addr_r} ${prefix}Image || exit 1
+load ${devtype} ${devnum}:${distro_bootpart} ${fdt_addr_r} ${prefix}dtbs/${fdtfile} || exit 1
 
 fdt addr ${fdt_addr_r}
 fdt resize 65536
 
-booti ${kernel_addr_r} ${ramdisk_addr_r} ${fdt_addr_r}
+booti ${kernel_addr_r} ${ramdisk_addr_r}:${ramdisk_size} ${fdt_addr_r}
 echo "FATAL: booti returned (kernel did not start)"

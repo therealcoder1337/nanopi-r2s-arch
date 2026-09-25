@@ -19,7 +19,6 @@ mkdir -p cache/arm-trusted-firmware cache/trusted-firmware cache/u-boot cache/u-
 EVENT="${ACT_EVENT:-$ROOT/.github/workflows/test-event.json}"
 ACT_RAM_MB="${ACT_RAM_MB:-8192}"
 RAMDISK="$ROOT/.act-ramdisk"
-HAS_ACT_RAMDISK=0
 
 unmount_lazy() {
     local path="$1"
@@ -58,7 +57,7 @@ clean_up() {
     unmount_lazy "$ROOT/mnt"
     unmount_lazy "$ROOT/output"
 
-    if [ "$HAS_ACT_RAMDISK" = 1 ] || mountpoint -q "$RAMDISK" 2>/dev/null; then
+    if mountpoint -q "$RAMDISK" 2>/dev/null; then
         sync_output_from_ramdisk
         unmount_lazy "$RAMDISK"
     fi
@@ -68,12 +67,11 @@ trap clean_up EXIT
 prepare_mounts
 
 if [ "$ACT_RAM_MB" != "0" ]; then
-    mkdir -p "$RAMDISK" "$ROOT/mnt" "$ROOT/output"
+    mkdir -p "$RAMDISK"
 
     if ! mountpoint -q "$RAMDISK" 2>/dev/null; then
         echo "Mounting ${ACT_RAM_MB} MiB tmpfs at $RAMDISK..."
         sudo mount -t tmpfs -o "size=${ACT_RAM_MB}m" tmpfs "$RAMDISK"
-        HAS_ACT_RAMDISK=1
     else
         echo "Reusing existing tmpfs at $RAMDISK"
     fi

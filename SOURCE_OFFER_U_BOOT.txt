@@ -6,16 +6,26 @@ licensed under GPL-2.0-or-later.
 
 Corresponding source (public)
 -----------------------------
-Complete source for the U-Boot version used in the image:
+Upstream source for the U-Boot version used in the image:
 
   https://source.denx.de/u-boot/u-boot.git
-  Tag: v2026.04
-  Commit: 88dc2788777babfd6322fa655df549a019aa1e69
+  Tag: v2026.07
+  Commit: ece349ade2973e220f524ce59e59711cc919263f
 
-Clone example:
+The builder verifies the signed release and pinned commit before applying
+the host-tool compatibility patch in vendor/patches/u-boot/ of this project:
+
+  https://github.com/therealcoder1337/nanopi-r2s-arch
+
+This backports DTC commit 5008d1d6a356b8d0a78060da2e1021507d529cff for
+SWIG 4.5 compatibility; it does not change the target bootloader code.
+
+Clone example (apply the patch from a checkout of this project):
 
   git clone https://source.denx.de/u-boot/u-boot.git
-  git checkout 88dc2788777babfd6322fa655df549a019aa1e69
+  cd u-boot
+  git checkout ece349ade2973e220f524ce59e59711cc919263f
+  git apply /path/to/nanopi-r2s-arch/vendor/patches/u-boot/*.patch
 
 How this project builds it
 --------------------------
