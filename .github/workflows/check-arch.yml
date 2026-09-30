@@ -34,20 +34,33 @@ jobs:
         run: |
           set -euo pipefail
           # A pending retry or a test-branch build must not hide a failed release build.
-          last_build="$(gh run list \
-            --repo "$GH_REPO" \
-            --workflow build-image.yml \
-            --branch "$DEFAULT_BRANCH" \
-            --status completed \
-            --limit 1 \
-            --json conclusion,url \
-            --jq '.[0] // {}')"
+          latest_completed_build() {
+            gh api --method GET \
+              "repos/$GH_REPO/actions/workflows/build-image.yml/runs" \
+              --paginate --slurp \
+              -H 'Cache-Control: no-cache' \
+              -f branch="$DEFAULT_BRANCH" -F per_page=100 "$@" |
+              jq -c --arg branch "$DEFAULT_BRANCH" '
+                [.[].workflow_runs[]
+                  | select(.head_branch == $branch and .status == "completed")
+                  | {run_number, run_attempt, updated_at, conclusion, html_url}]
+                | max_by([.run_number, .run_attempt, .updated_at]) // {}'
+          }
+          # Filter and order locally instead of trusting a single filtered API result.
+          last_build="$(latest_completed_build)"
           if [ "$last_build" = '{}' ]; then
             exit 0
           fi
+          if [ "$(jq -r '.conclusion' <<< "$last_build")" != success ]; then
+            # Recheck via a different query before reporting a possibly stale failure.
+            confirmed="$(latest_completed_build -f status=completed)"
+            # An older response must not erase a newer failed run or rerun attempt.
+            last_build="$(jq -cn --argjson first "$last_build" --argjson second "$confirmed" \
+              '[$first, $second] | max_by([.run_number, .run_attempt, .updated_at])')"
+          fi
           conclusion="$(jq -r '.conclusion' <<< "$last_build")"
           if [ "$conclusion" != success ]; then
-            url="$(jq -r '.url' <<< "$last_build")"
+            url="$(jq -r '.html_url' <<< "$last_build")"
             printf '::error::Automatic builds paused: latest completed build on %s ended with %s. See %s\n' "$DEFAULT_BRANCH" "$conclusion" "$url"
             {
               printf '### Automatic image builds are paused\n\n'
